@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # mkvdts2ac3.sh - add an AC3 track to an MKV from its DTS track
 # Author: Jake Wharton <jakewharton@gmail.com>
 #         Chris Hoekstra <chris.hoekstra@gmail.com>
@@ -100,7 +101,7 @@ function color {
 		yellow|YELLOW) echo -n '[1;33m';;
 		green|GREEN)   echo -n '[1;32m';;
 		blue|BLUE)     echo -n '[1;34m';;
-		bell|BELL)     echo -n '';;
+		bell|BELL)     echo -n '';;
 		*)             ;;
 	esac
 }
@@ -198,6 +199,7 @@ doprint() {
 # Start the timer and make a working copy for future timings
 START=$(date +%s)
 PREVTIME=$(($START))
+NODTS=1
 
 # Parse arguments and/or filename
 while [ -z "$MKVFILE" ]; do
