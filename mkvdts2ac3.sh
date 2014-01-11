@@ -40,11 +40,12 @@ MD5=0
 INITIAL=0
 NEW=0
 COMP="none"
-WD="/tmp" # Working Directory (Use the -w/--wd argument to change)
+WD="/volume1/Data/download/convert/tmp/" # Working Directory (Use the -w/--wd argument to change)
 
 # These are so you can make quick changes to the cmdline args without having to search and replace the entire script
 DUCMD="$(which \du) -k"
 RSYNCCMD="$(which \rsync) --progress -a"
+FFMPEG="/usr/local/bin/ffmpeg"
 
 # Check for a .mkvdts2ac3.rc file in user's home directory for custom defaults
 if [ -f ~/.mkvdts2ac3.rc ]; then
@@ -509,13 +510,13 @@ fi
 # ------ CONVERSION ------
 # Convert DTS to AC3
 doprint $"Converting DTS to AC3."
-doprint "> ffmpeg -i \"$DTSFILE\" -acodec ac3 -ac 6 -ab 448k \"$AC3FILE\""
+doprint "> \"$FFMPEG\" -i \"$DTSFILE\" -acodec ac3 -ac 6 -ab 448k \"$AC3FILE\""
 
 dopause
 if [ $EXECUTE = 1 ]; then
 	color YELLOW; echo $"Converting DTS to AC3:"; color OFF
 	DTSFILESIZE=$($DUCMD "$DTSFILE" | cut -f1) # Capture DTS filesize for end summary
-	nice -n $PRIORITY ffmpeg -i "$DTSFILE" -acodec ac3 -ac 6 -ab 448k "$AC3FILE" 2>&1|perl -ne '$/="\015";next unless /size=\s*(\d+)/;$|=1;$s='$DTSFILESIZE';printf "Progress: %.0f%\r",450*$1/$s' #run ffmpeg and only show Progress %. Need perl to read \r end of lines
+	nice -n $PRIORITY $FFMPEG -i "$DTSFILE" -acodec ac3 -ac 6 -ab 640k "$AC3FILE" 2>&1|perl -ne '$/="\015";next unless /size=\s*(\d+)/;$|=1;$s='$DTSFILESIZE';printf "Progress: %.0f%\r",450*$1/$s' #run ffmpeg and only show Progress %. Need perl to read \r end of lines
 	checkerror $? $"Converting the DTS file to AC3 failed" 1
 
 	# If we are keeping the DTS track external copy it back to original folder before deleting
