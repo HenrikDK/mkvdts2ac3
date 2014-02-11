@@ -378,6 +378,7 @@ NAME=$(basename "$MKVFILE" .mkv)
 
 # Setup temporary files
 DTSFILE="$WD/$NAME.dts"
+THDFILE="SWD/$NAME.thd"
 AC3FILE="$WD/$NAME.ac3"
 TCFILE="$WD/$NAME.tc"
 NEWFILE="$WD/$NAME.new.mkv"
@@ -503,15 +504,15 @@ doprint "> mkvextract tracks \"$MKVFILE\" $DTSTRACK:\"$DTSFILE\""
 
 dopause
 if [ $EXECUTE = 1 ]; then
-	color YELLOW; echo $"Extracting DTS Track: "; color OFF
+	color YELLOW; echo $"Extracting Audio Track: "; color OFF
 	nice -n $PRIORITY mkvextract tracks "$MKVFILE" $DTSTRACK:"$DTSFILE" 2>&1|perl -ne '$/="\015";next unless /Progress/;$|=1;print "%s\r",$_' #Use Perl to change EOL from \n to \r show Progress %
 	checkerror $? $"Extracting DTS track failed." 1
 	timestamp $"DTS track extracting took:	"
 fi
 
 # ------ CONVERSION ------
-# Convert DTS to AC3
-doprint $"Converting DTS to AC3."
+# Convert to AC3
+doprint $"Converting to AC3."
 doprint "> \"$FFMPEG\" -i \"$DTSFILE\" -acodec ac3 -ac 6 -ab 448k \"$AC3FILE\""
 
 dopause
