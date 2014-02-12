@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import argparse
 import os
 import subprocess
 import time
@@ -12,9 +11,8 @@ import errno
 
 #set global variables
 test = True
-working_directory = "/volume1/Data/download/convert/"
+working_directory = "/folder/to/convert"
 temp_working_directory = working_directory + "/tmp"
-language = "eng"
 audio_codecs = ["A_TRUEHD", "A_DTS"]
 
 # set ffmpeg and mkvtoolnix paths
@@ -23,7 +21,7 @@ mkvmerge = "mkvmerge"
 mkvextract = "mkvextract"
 ffmpeg = "/usr/local/bin/ffmpeg"
 
-def doprint(message):
+def do_print(message):
     sys.stdout.write(message + "\n")
 
 def silent_remove(filename):
@@ -33,8 +31,8 @@ def silent_remove(filename):
         if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
             raise # re-raise exception if a different error occured
 
-def elapsedstr(starttime):
-    elapsed = (time.time() - starttime)
+def get_elapsed_time(start_time):
+    elapsed = (time.time() - start_time)
     minutes = int(elapsed / 60)
     mplural = 's'
     if minutes == 1:
@@ -45,22 +43,16 @@ def elapsedstr(starttime):
         splural = ''
     return str(minutes) + " minute" + mplural + " " + str(seconds) + " second" + splural
 
-def getduration(time):
-    (hms, ms) = time.split('.')
-    (h, m, s) = hms.split(':')
-    totalms = int(ms) + (int(s) * 100) + (int(m) * 100 * 60) + (int(h) * 100 * 60 * 60)
-    return totalms
-   
-def runcommand( title, cmdlist):
+def run_command(command_parameters):
     if test:
-        cmdstr = ''
-        for e in cmdlist:
-            cmdstr += e + ' '
+        command_string = ''
+        for parameter in command_parameters:
+            command_string += parameter + ' '
         print
         print "    Running command:"
-        print textwrap.fill(cmdstr.rstrip(), initial_indent='      ', subsequent_indent='      ')
-    else:
-        subprocess.call(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print textwrap.fill(command_string.rstrip(), initial_indent='      ', subsequent_indent='      ')
+    
+    subprocess.call(command_parameters)
 
 def find_mount_point(path):
     path = os.path.abspath(path)
@@ -69,19 +61,19 @@ def find_mount_point(path):
     return path
 
 
-def clean_up_temp_folder(tempac3file, tempdtsfile, temptcfile):
+def clean_up_temp_folder(new_audio_file, main_audio_file, time_code_file):
     if not test:
-        silent_remove(tempdtsfile)
-        silent_remove(tempac3file)
-        silent_remove(temptcfile)
+        silent_remove(main_audio_file)
+        silent_remove(new_audio_file)
+        silent_remove(time_code_file)
 
 
-def print_statistics(fileName, starttime):
+def print_statistics(file_name, start_time):
     #~ print out time taken
-    elapsed = (time.time() - starttime)
+    elapsed = (time.time() - start_time)
     minutes = int(elapsed / 60)
     seconds = int(elapsed) % 60
-    doprint("  " + fileName + " finished in: " + str(minutes) + " minutes " + str(seconds) + " seconds\n")
+    do_print("  " + file_name + " finished in: " + str(minutes) + " minutes " + str(seconds) + " seconds\n")
 
 def remux_movie(movie_path, audio_track_name, audio_delay, audio_language, tempac3file, tempmkvfile, video_track_id):
     # remux
@@ -116,23 +108,23 @@ def remux_movie(movie_path, audio_track_name, audio_delay, audio_language, tempa
     # Declare output file
     remux.append("-o")
     remux.append(tempmkvfile)
-    runcommand(remux)
+    run_command(remux)
 
 
 def extract_audio(movie_path, main_audio_track, temp_audio_file):
     # extract dts track
     extractcmd = [mkvextract, "tracks", movie_path, main_audio_track + ':' + temp_audio_file]
-    runcommand(extractcmd)
+    run_command(extractcmd)
 
 def convert_audio(source_audio_file, temp_audio_file):
     # convert Audio
     audiochannels = 6
     convertcmd = [ffmpeg, "-y", "-i", source_audio_file, "-acodec", "ac3", "-ac", str(audiochannels), "-ab", "640k", temp_audio_file]
-    runcommand(convertcmd)
+    run_command(convertcmd)
 
 def calculate_audio_delay(movie_path, dtstrackid, temptcfile):
     tccmd = [mkvextract, "timecodes_v2", movie_path, dtstrackid + ":" + temptcfile]
-    runcommand(tccmd)
+    run_command(tccmd)
 
     delay = False
     if not test:
@@ -165,6 +157,7 @@ def get_track_id(line):
 def extract_general_track_info(movie_path):
     # get main track id and video track id
     output = subprocess.check_output([mkvmerge, "-i", movie_path])
+    do_print("mkv stats: \n" + output)
     lines = output.split("\n")
 
     video_track_id = False
@@ -262,8 +255,8 @@ def process_movie(movie_path):
     if os.path.isdir(movie_path):
         return
 
-    starttime = time.time()
-    doprint("    Processing file: " + movie_path + "\n")
+    start_time = time.time()
+    do_print("    Processing file: " + movie_path + "\n")
 
     # check if file is an mkv file
     child = subprocess.Popen([mkvmerge, "-i", movie_path], stdout=subprocess.PIPE)
@@ -272,60 +265,60 @@ def process_movie(movie_path):
         return
 
     (dirName, fileName) = os.path.split(movie_path)
-    fileBaseName = os.path.splitext(fileName)[0]
+    file_base_name = os.path.splitext(fileName)[0]
 
-    doprint("filename: " + fileName)
+    do_print("filename: " + fileName)
 
-    tempac3file = os.path.join(temp_working_directory, fileBaseName + '.ac3')
-    temptcfile = os.path.join(temp_working_directory, fileBaseName + '.tc')
-    new_mkv_file = os.path.join(temp_working_directory, fileBaseName + '.new.mkv')
+    new_audio_file = os.path.join(temp_working_directory, file_base_name + '.ac3')
+    time_codes_file = os.path.join(temp_working_directory, file_base_name + '.tc')
+    new_mkv_file = os.path.join(temp_working_directory, file_base_name + '.new.mkv')
 
     video_track_id, audio_tracks = extract_general_track_info(movie_path)
 
     already_got_ac3 = check_if_file_has_ac3(audio_tracks)
     audio_type, main_audio_track_id = get_main_audio_track(audio_tracks)
 
-    main_audio_file = os.path.join(temp_working_directory, fileBaseName + audio_type)
+    main_audio_file = os.path.join(temp_working_directory, file_base_name + audio_type)
 
     if already_got_ac3:
-        doprint("  Already has AC3 track\n")
+        do_print("  Already has AC3 track\n")
         return
 
     if not main_audio_track_id:
-        doprint("  No DTS or TrueHD track found\n")
+        do_print("  No DTS or TrueHD track found\n")
         return
 
-    doprint("  Extracting audio track information [1/7]...")
+    do_print("  Extracting audio track information [1/7]...")
     audio_language, audio_track_name  = extract_audio_info(movie_path, main_audio_track_id)
 
-    doprint("  Calculating audio/video delay  [2/7]...")
-    delay = calculate_audio_delay(movie_path, main_audio_track_id, temptcfile)
+    do_print("  Calculating audio/video delay  [2/7]...")
+    delay = calculate_audio_delay(movie_path, main_audio_track_id, time_codes_file)
 
-    doprint("  Extracting main Audio track  [3/7]...")
+    do_print("  Extracting main Audio track  [3/7]...")
     extract_audio(movie_path, main_audio_track_id, main_audio_file)
 
-    doprint("  Converting audio to AC3  [4/7]...")
-    convert_audio(main_audio_file, tempac3file)
+    do_print("  Converting audio to AC3  [4/7]...")
+    convert_audio(main_audio_file, new_audio_file)
 
-    doprint("  Remuxing AC3 into MKV  [5/7]...")
-    remux_movie(movie_path, audio_track_name, delay, audio_language, tempac3file, new_mkv_file, video_track_id)
+    do_print("  Remuxing AC3 into MKV  [5/7]...")
+    remux_movie(movie_path, audio_track_name, delay, audio_language, new_audio_file, new_mkv_file, video_track_id)
 
-    doprint("  Replacing MKV with new File  [6/7]...")
+    do_print("  Replacing MKV with new File  [6/7]...")
     replace_movie(movie_path, new_mkv_file)
 
-    doprint("  Deleting temporary files  [7/7]...")
-    clean_up_temp_folder(tempac3file, main_audio_file, temptcfile)
+    do_print("  Deleting temporary files  [7/7]...")
+    clean_up_temp_folder(new_audio_file, main_audio_file, time_codes_file)
 
-    print_statistics(fileName, starttime)
+    print_statistics(fileName, start_time)
             
 def process():
-    totalstime = time.time()
+    start_time = time.time()
     if os.path.isdir(working_directory):
         for f in os.listdir(working_directory):
             if f.rfind(".mkv") > 0:
                 process_movie(os.path.join(working_directory, f))
 
-    doprint("Total processing time: " + elapsedstr(totalstime))
+    do_print("Total processing time: " + get_elapsed_time(start_time))
 
 if __name__ == "__main__":
     process()
