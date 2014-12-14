@@ -71,7 +71,7 @@ for root, dirs, files in os.walk(in_dir):
                     break
         
         # filter out files that don't need processing
-        if len(audio_lang) == 0 and len(subtitle_lang) == 0:
+        if len(audio_lang) == 0:
             print >> sys.stderr, "no tracks with that language in", path
             continue
         
@@ -88,6 +88,8 @@ for root, dirs, files in os.walk(in_dir):
             cmd += ["--subtitle-tracks", ",".join([str(s[0]) for s in subtitle_lang])]
             for i in range(len(subtitle_lang)):
                 cmd += ["--default-track", ":".join([subtitle_lang[i][0], "0"])]
+        else:
+            cmd += "--no-subtitles"
         cmd += [path]
         
         # process file
