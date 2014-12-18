@@ -19,7 +19,7 @@ audio_codecs = ["A_TRUEHD", "A_DTS"]
 mkvinfo = "mkvinfo"
 mkvmerge = "mkvmerge"
 mkvextract = "mkvextract"
-ffmpeg = "/usr/local/bin/ffmpeg"
+avconverter = "avconv"
 
 def do_print(message):
     sys.stdout.write(message + "\n")
@@ -119,7 +119,7 @@ def extract_audio(movie_path, main_audio_track, temp_audio_file):
 def convert_audio(source_audio_file, temp_audio_file):
     # convert Audio
     audiochannels = 6
-    convertcmd = [ffmpeg, "-y", "-i", source_audio_file, "-acodec", "ac3", "-ac", str(audiochannels), "-ab", "640k", temp_audio_file]
+    convertcmd = [avconverter, "-y", "-i", source_audio_file, "-acodec", "ac3", "-ac", str(audiochannels), "-ab", "640k", temp_audio_file]
     run_command(convertcmd)
 
 def calculate_audio_delay(movie_path, dtstrackid, temptcfile):
