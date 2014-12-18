@@ -19,8 +19,8 @@ audio_codecs = ["A_TRUEHD", "A_DTS", "A_AC3"]
 # set this to the path for mkvmerge
 mkvmerge = "mkvmerge"
 
-audio_search = re.compile(r"Track ID (\d+): audio \((\S+)\) \[language:([a-z]{3}) \S* ?default_track:[01]{1} forced_track:[01]{1}\]")
-subtitle_search = re.compile(r"Track ID (\d+): subtitles \([A-Z0-9_/]+\) \[language:([a-z]{3}) \S* ?default_track:[01]{1} forced_track:[01]{1}\]")
+audio_search = re.compile(r"Track ID (\d+): audio \((\S+)\) \[(?:\S* ?){0,4}?language:([a-z]{3}) \S* ?default_track:[01]{1} forced_track:[01]{1}(?: ?\S*){0,4}?\]")
+subtitle_search = re.compile(r"Track ID (\d+): subtitles \([A-Z0-9_/]+\) \[(?:\S* ?){0,4}?language:([a-z]{3}) default_track:[01]{1} forced_track:[01]{1}(?: ?\S*){0,2}?\]")
 
 def do_print(message):
     sys.stdout.write(message + "\n")
