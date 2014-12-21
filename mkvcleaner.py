@@ -3,9 +3,7 @@
 import os
 import re
 import sys
-import StringIO
 import subprocess
-import textwrap
 import time
 import shutil
 import errno
@@ -19,11 +17,12 @@ audio_codecs = ["A_TRUEHD", "A_DTS", "A_AC3"]
 # set this to the path for mkvmerge
 mkvmerge = "mkvmerge"
 
-audio_search = re.compile(r"Track ID (\d+): audio \((\S+)\) \[(?:\S* ?){0,4}?language:([a-z]{3}) \S* ?default_track:[01]{1} forced_track:[01]{1}(?: ?\S*){0,4}?\]")
+audio_search = re.compile(r"Track ID (\d+): audio \((\S+)\) \[(?:\S* ?){0,4}?language:([a-z]{3}) \S* ?default_track:[01]{1} forced_track:[01]{1}(?: ?\S*){0,6}?\]")
 subtitle_search = re.compile(r"Track ID (\d+): subtitles \([A-Z0-9_/]+\) \[(?:\S* ?){0,4}?language:([a-z]{3}) default_track:[01]{1} forced_track:[01]{1}(?: ?\S*){0,2}?\]")
 
 def do_print(message):
     sys.stdout.write(message + "\n")
+
 
 def silent_remove(filename):
     try:
@@ -32,16 +31,18 @@ def silent_remove(filename):
         if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
             raise # re-raise exception if a different error occured
 
+
 def run_command(command_parameters):
-    if test:
-        command_string = ''
-        for parameter in command_parameters:
-            command_string += parameter + ' '
-        print
-        print "    Running command:"
-        print textwrap.fill(command_string.rstrip(), initial_indent='      ', subsequent_indent='      ')
+    command_string = ''
+    for parameter in command_parameters:
+        command_string += parameter + ' '
+    print
+    print "    Running command:"
+    print command_string.rstrip()
+    print
 
     subprocess.call(command_parameters)
+
 
 def get_elapsed_time(start_time):
     elapsed = (time.time() - start_time)
@@ -55,8 +56,9 @@ def get_elapsed_time(start_time):
         splural = ''
     return str(minutes) + " minute" + mplural + " " + str(seconds) + " second" + splural
 
+
 def replace_movie(original_mkv, new_mkv):
-    if not test:
+    if not test and os.path.exists(new_mkv):
         silent_remove(original_mkv)
         shutil.move(new_mkv, original_mkv)
 
@@ -68,11 +70,12 @@ def print_statistics(file_name, start_time):
     seconds = int(elapsed) % 60
     do_print("  " + file_name + " finished in: " + str(minutes) + " minutes " + str(seconds) + " seconds\n")
 
+
 def extract_audio_and_subtitle_track_details(movie_structure):
     audio = []
     subtitle = []
-    for line in StringIO.StringIO(movie_structure):
-        print "line: " + repr(line)
+
+    for line in movie_structure.split("\n"):
         m = audio_search.match(line)
         if m:
             audio.append(m.groups())
@@ -85,11 +88,12 @@ def extract_audio_and_subtitle_track_details(movie_structure):
 
 
 def movie_only_has_one_language(audio, subtitle):
-    return len(audio) < 2 and len(subtitle) < 2
+    audio_languages = set(a[2] for a in audio)
+    subtitle_languages = set(s[1] for s in subtitle)
+    return len(audio) == 1 and len(audio_languages) == 1 and len(subtitle_languages) == 1
 
 
 def add_audio_tracks(audio_lang, cmd):
-    print
     if len(audio_lang):
         cmd += ["--audio-tracks", ",".join([str(a[0]) for a in audio_lang])]
         for i in range(len(audio_lang)):
@@ -103,7 +107,7 @@ def add_subtitle_tracks(subtitle_lang, cmd):
         for i in range(len(subtitle_lang)):
             cmd += ["--default-track", ":".join([subtitle_lang[i][0], "0"])]
     else:
-        cmd += "--no-subtitles"
+        cmd += ["--no-subtitles"]
     return cmd
 
 
@@ -134,8 +138,8 @@ def clean_movie(movie_path):
     do_print("    Cleaning file: " + movie_path + "\n")
 
     # check if file is an mkv file
-    child = subprocess.Popen([mkvmerge, "-i", movie_path], stdout=subprocess.PIPE)
-    movie_structure = child.communicate()
+    child = subprocess.Popen([mkvmerge, "--identify-verbose", movie_path], stdout=subprocess.PIPE)
+    movie_structure = child.communicate()[0]
     if child.returncode != 0:
         do_print("    Not a valid mkv file, exiting..")
         return
@@ -153,14 +157,14 @@ def clean_movie(movie_path):
     do_print("    Selecting highest quality audio track:")
     audio_lang = select_highest_quality_audio_track(audio_lang)
 
-    if language_not_in_movie(audio_lang, language):
+    if language_not_in_movie(audio_lang):
         do_print("    Language " + language + " not in movie, exiting..")
         return
 
     # build command line
     cmd = [mkvmerge, "-o", movie_path + ".temp"]
 
-    do_print("    Adding Audio Tracks: " + repr(audio_lang))
+    do_print("    Adding Audio Track: " + repr(audio_lang))
     cmd = add_audio_tracks(audio_lang, cmd)
 
     do_print("    Adding Subtitle Tracks: " + repr(subtitle_lang))
@@ -183,6 +187,7 @@ def process():
                 clean_movie(os.path.join(working_directory, f))
 
     do_print("Total processing time: " + get_elapsed_time(start_time))
+
 
 if __name__ == "__main__":
     process()
