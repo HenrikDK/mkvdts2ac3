@@ -58,7 +58,7 @@ def get_elapsed_time(start_time):
 
 
 def replace_movie(original_mkv, new_mkv):
-    if not test and os.path.exists(new_mkv):
+    if os.path.exists(new_mkv) and os.path.exists(original_mkv):
         silent_remove(original_mkv)
         shutil.move(new_mkv, original_mkv)
 
