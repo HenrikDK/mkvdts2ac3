@@ -13,7 +13,7 @@ import errno
 test = True
 working_directory = "/folder/to/convert"
 temp_working_directory = working_directory + "/tmp"
-audio_codecs = ["A_TRUEHD", "A_DTS"]
+audio_codecs = ["TRUEHD", "DTS"]
 
 # set ffmpeg and mkvtoolnix paths
 mkvinfo = "mkvinfo"
@@ -164,9 +164,9 @@ def extract_general_track_info(movie_path):
     audio_tracks = []
     for line in lines:
         trackid = get_track_id(line)
-        if 'audio (A_' in line:
+        if 'audio (' in line:
             audio_tracks.append(line)
-        elif 'video (V_' in line:
+        elif 'video (' in line:
             video_track_id = trackid
 
     return video_track_id, audio_tracks
