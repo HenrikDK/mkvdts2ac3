@@ -228,7 +228,7 @@ def check_if_file_has_ac3(audio_tracks):
     already_got_ac3 = False
 
     for track in audio_tracks:
-        if ": audio (A_AC3)" in track:
+        if ": audio (AC3)" in track:
             already_got_ac3 = True
 
     return already_got_ac3
