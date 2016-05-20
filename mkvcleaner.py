@@ -10,15 +10,11 @@ import errno
 
 # change this for other languages (3 character code)
 language = "eng"
-test = True
 working_directory = "/folder/to/convert"
-audio_codecs = ["A_TRUEHD", "A_DTS", "A_AC3"]
+audio_codecs = ["TRUEHD", "DTS", "AC3"]
 
 # set this to the path for mkvmerge
 mkvmerge = "mkvmerge"
-
-audio_search = re.compile(r"Track ID (\d+): audio \((\S+)\) \[(?:\S* ?){0,4}?language:([a-z]{3}) \S* ?default_track:[01]{1} forced_track:[01]{1}(?: ?\S*){0,6}?\]")
-subtitle_search = re.compile(r"Track ID (\d+): subtitles \([A-Z0-9_/]+\) \[(?:\S* ?){0,4}?language:([a-z]{3}) default_track:[01]{1} forced_track:[01]{1}(?: ?\S*){0,2}?\]")
 
 def do_print(message):
     sys.stdout.write(message + "\n")
@@ -29,7 +25,7 @@ def silent_remove(filename):
         os.remove(filename)
     except OSError, e:
         if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
-            raise # re-raise exception if a different error occured
+            raise
 
 
 def run_command(command_parameters):
@@ -76,44 +72,85 @@ def extract_audio_and_subtitle_track_details(movie_structure):
     subtitle = []
 
     for line in movie_structure.split("\n"):
-        m = audio_search.match(line)
-        if m:
-            audio.append(m.groups())
-        else:
-            m = subtitle_search.match(line)
-            if m:
-                subtitle.append(m.groups())
+        track = extract_track_info(line)
+        if track["type"] == "audio":
+            audio.append(track)
+        if track["type"] == "subtitles":
+            subtitle.append(track)
 
     return (audio, subtitle)
 
 
+def extract_track_info(line):
+    track_id = get_track_id(line)
+    language = get_language(line)
+    default = get_track_default(line)
+    type = get_track_type(line)
+    codec = get_track_codec(line)
+    track = {"track_id":track_id, "type":type, "codec":codec, "language":language, "default":default}
+    return track
+
+
+def get_track_id(line):
+    track_id_begin = line.find("Track ID ") + len("Track ID ")
+    track_id_end = line.find(":")
+    return line[track_id_begin:track_id_end]
+
+
+def get_language(line):
+    language_begin = line.find("language:") + len("language:")
+    language_end = language_begin + 3
+    return line[language_begin: language_end]
+
+
+def get_track_type(line):
+    type_begin = line.find(": ") + len(": ")
+    type_end = line.find(" (")
+    return line[type_begin:type_end]
+
+
+def get_track_default(line):
+    if line.find("default_track:") > 0:
+        default_begin = line.find("default_track:") + len("default_track:")
+        default_end = default_begin + 1
+        return int(line[default_begin:default_end])
+    return 0
+
+
+def get_track_codec(line):
+    codec_begin = line.find(" (") + len(" (")
+    codec_end = line.find(")")
+    codec = line[codec_begin:codec_end]
+    return codec
+
+
 def movie_only_has_one_language(audio, subtitle):
-    audio_languages = set(a[2] for a in audio)
-    subtitle_languages = set(s[1] for s in subtitle)
+    audio_languages = set(a["language"] for a in audio)
+    subtitle_languages = set(s["language"] for s in subtitle)
     return len(audio) == 1 and len(audio_languages) == 1 and len(subtitle_languages) == 1
 
 
 def add_audio_tracks(audio_lang, cmd):
     if len(audio_lang):
-        cmd += ["--audio-tracks", ",".join([str(a[0]) for a in audio_lang])]
-        for i in range(len(audio_lang)):
-            cmd += ["--default-track", ":".join([audio_lang[i][0], "0" if i else "1"])]
+        cmd += ["--audio-tracks", ",".join([a["track_id"] for a in audio_lang])]
+        for audio_track in audio_lang:
+            cmd += ["--default-track", audio_track["track_id"] + ":" + str(audio_track["default"])]
     return cmd
 
 
 def add_subtitle_tracks(subtitle_lang, cmd):
     if len(subtitle_lang):
-        cmd += ["--subtitle-tracks", ",".join([str(s[0]) for s in subtitle_lang])]
-        for i in range(len(subtitle_lang)):
-            cmd += ["--default-track", ":".join([subtitle_lang[i][0], "0"])]
+        cmd += ["--subtitle-tracks", ",".join([str(s["track_id"]) for s in subtitle_lang])]
+        for subtitle_track in subtitle_lang:
+            cmd += ["--default-track", subtitle_track["track_id"] + ":" + str(subtitle_track["default"])]
     else:
         cmd += ["--no-subtitles"]
     return cmd
 
 
 def filter_audio_and_subtitle_languages(audio, subtitle, language):
-    audio_lang = filter(lambda a: a[2] == language, audio)
-    subtitle_lang = filter(lambda a: a[1] == language, subtitle)
+    audio_lang = filter(lambda a: a["language"] == language, audio)
+    subtitle_lang = filter(lambda a: a["language"] == language, subtitle)
     return audio_lang, subtitle_lang
 
 
@@ -124,7 +161,7 @@ def language_not_in_movie(audio_lang):
 def select_highest_quality_audio_track(audio_lang):
     for codec in audio_codecs:
         for lang in audio_lang:
-            if lang[1] == codec:
+            if lang["codec"] == codec:
                 audio_lang = [lang]
                 break
 
@@ -140,6 +177,7 @@ def clean_movie(movie_path):
     # check if file is an mkv file
     child = subprocess.Popen([mkvmerge, "--identify-verbose", movie_path], stdout=subprocess.PIPE)
     movie_structure = child.communicate()[0]
+
     if child.returncode != 0:
         do_print("    Not a valid mkv file, exiting..")
         return
